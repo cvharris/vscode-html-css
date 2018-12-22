@@ -44,7 +44,7 @@ class ClassServer implements vsc.CompletionItemProvider {
 
   private regex = [
     /(class|id|className)=["|']([^"^']*$)/i,
-    /(\.|\#)[^\.^\#^\<^\>]*$/i,
+    /(\.|\#)[^\s]*$/i,
     /<style[\s\S]*>([\s\S]*)<\/style>/ig
   ];
 
@@ -55,7 +55,11 @@ class ClassServer implements vsc.CompletionItemProvider {
 
     let tag = this.regex[0].exec(text);
     if (!tag) {
-      tag = this.regex[1].exec(text);
+      const textList = text.split('\n');
+      const finalLineText = textList.length > 0 ? textList[textList.length - 1] : false;
+      if (finalLineText) {
+        tag = this.regex[1].exec(finalLineText);
+      }
     }
     if (tag) {
       let internal: lst.SymbolInformation[] = [];
@@ -140,7 +144,7 @@ function parseRemoteConfig() {
 
 export function activate(context: vsc.ExtensionContext) {
 
-  if (vsc.workspace.rootPath) {
+  if (vsc.workspace.workspaceFolders) {
 
     const remoteCssConfig = vsc.workspace.getConfiguration('css');
     const extensions = remoteCssConfig.get('fileExtensions') as string[];
@@ -171,9 +175,7 @@ export function activate(context: vsc.ExtensionContext) {
 
   };
 
-  let classServer = new ClassServer();
-
-  context.subscriptions.push(vsc.languages.registerCompletionItemProvider([
+  const langs = [
     'html',
     'laravel-blade',
     'razor',
@@ -185,26 +187,21 @@ export function activate(context: vsc.ExtensionContext) {
     'php',
     'twig',
     'md',
+    'nunjucks',
     'javascript',
     'javascriptreact',
-    'erb'
-  ], classServer));
+    'erb',
+    'typescript',
+    'typescriptreact'
+  ]
+
+  context.subscriptions.push(vsc.languages.registerCompletionItemProvider(langs, new ClassServer()));
 
   let wp = /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\.\"\,\<\>\/\?\s]+)/g;
 
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('laravel-blade', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('razor', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('vue', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('blade', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('pug', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('jade', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('handlebars', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('php', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('twig', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('md', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('javascript', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('javascriptreact', { wordPattern: wp }));
-  context.subscriptions.push(vsc.languages.setLanguageConfiguration('erb', { wordPattern: wp }));
+  for (let i = 1; i < langs.length; i++) {
+    context.subscriptions.push(vsc.languages.setLanguageConfiguration(langs[i], { wordPattern: wp }));
+  }
 
   context.subscriptions.push(vsc.workspace.onDidChangeConfiguration((e) => parseRemoteConfig()));
 }
